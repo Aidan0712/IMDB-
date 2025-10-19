@@ -1,0 +1,244 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "98bd309f",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-10-19T10:01:43.178025Z",
+     "iopub.status.busy": "2025-10-19T10:01:43.177816Z",
+     "iopub.status.idle": "2025-10-19T10:02:12.680401Z",
+     "shell.execute_reply": "2025-10-19T10:02:12.679772Z"
+    },
+    "papermill": {
+     "duration": 29.506333,
+     "end_time": "2025-10-19T10:02:12.681871",
+     "exception": false,
+     "start_time": "2025-10-19T10:01:43.175538",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "from gensim.models import Word2Vec\n",
+    "from sklearn.cluster import KMeans\n",
+    "import time\n",
+    "import pandas as pd\n",
+    "from sklearn.ensemble import RandomForestClassifier\n",
+    "import numpy as np\n",
+    "\n",
+    "from cuml.cluster import KMeans as cuKMeans\n",
+    "from cuml.ensemble import RandomForestClassifier as cuRF\n",
+    "\n",
+    "import sys\n",
+    "sys.path.append('/kaggle/input/kaggleword2vecutility/')\n",
+    "from KaggleWord2VecUtility import KaggleWord2VecUtility\n",
+    "\n",
+    "def create_bag_of_centroids(wordlist, word_centroid_map):\n",
+    "    num_centroids = max(word_centroid_map.values()) + 1\n",
+    "    bag_of_centroids = np.zeros(num_centroids, dtype=\"float32\")\n",
+    "\n",
+    "    for word in wordlist:\n",
+    "        if word in word_centroid_map:\n",
+    "            index = word_centroid_map[word]\n",
+    "            bag_of_centroids[index] += 1\n",
+    "\n",
+    "    return bag_of_centroids"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "7a49d11f",
+   "metadata": {
+    "_cell_guid": "b1076dfc-b9ad-4769-8c92-a6c4dae69d19",
+    "_uuid": "8f2839f25d086af736a60e9eeb907d3b93b6e0e5",
+    "execution": {
+     "iopub.execute_input": "2025-10-19T10:02:12.686086Z",
+     "iopub.status.busy": "2025-10-19T10:02:12.685605Z",
+     "iopub.status.idle": "2025-10-19T10:03:37.242232Z",
+     "shell.execute_reply": "2025-10-19T10:03:37.241423Z"
+    },
+    "papermill": {
+     "duration": 84.559695,
+     "end_time": "2025-10-19T10:03:37.243393",
+     "exception": false,
+     "start_time": "2025-10-19T10:02:12.683698",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Running K means\n",
+      "Time taken for K Means clustering: 22.888254165649414 seconds.\n",
+      "\n",
+      "Cluster 0\n",
+      "['spirit']\n",
+      "\n",
+      "Cluster 1\n",
+      "['subsequent', 'fatal', 'resulting', 'ensues', 'courtroom', 'charged', 'abruptly', 'disastrous', 'rapidly', 'shifts', 'devastating', 'neatly', 'witnessing', 'complications', 'grisly', 'traumatic', 'ensue', 'arise', 'occurring', 'culminating', 'downward', 'culminates']\n",
+      "\n",
+      "Cluster 2\n",
+      "['host', 'buster', 'seinfeld', 'sparks', 'chops', 'springer', 'irwin', 'leno', 'bruckheimer']\n",
+      "\n",
+      "Cluster 3\n",
+      "['intellectual', 'ultra', 'object', 'achievement', 'argument', 'alternative', 'agenda', 'educational', 'adolescent', 'objective', 'abortion', 'indication', 'examination', 'array', 'allegory', 'exaggeration', 'abundance', 'ounce', 'assortment']\n",
+      "\n",
+      "Cluster 4\n",
+      "['fictional', 'arc', 'outline', 'progression', 'arcs']\n",
+      "\n",
+      "Cluster 5\n",
+      "['horrors', 'conditions', 'theories', 'camps', 'atrocities']\n",
+      "\n",
+      "Cluster 6\n",
+      "['er', 'troy', 'ash', 'reggie', 'homer', 'fry', 'genie', 'awry', 'mulder', 'reaper', 'arnie', 'kenny', 'grinch', 'inuyasha', 'jafar', 'scully', 'teddy', 'hes', 'astro', 'gator', 'herbie', 'timon', 'nemo', 'shaggy', 'smallville', 'wan', 'blackadder', 'elmer', 'yor', 'futurama', 'diesel', 'pinhead', 'martian', 'carlito', 'vin', 'yoda', 'goku', 'duane', 'anakin', 'iago', 'chucky', 'po', 'garth', 'dino', 'zack', 'banner', 'daredevil', 'suspiciously', 'leprechaun', 'airwolf', 'hutch', 'jericho', 'wraith', 'wwf', 'sesame', 'papa', 'starsky', 'scrappy', 'cannonball', 'luthor', 'pumbaa', 'squall', 'dexter', 'frodo', 'cartman', 'bots', 'clause', 'pumpkinhead', 'voorhees', 'michaels', 'elmo', 'pluto', 'tong', 'elwood', 'simba', 'spongebob', 'aquaman', 'gilligan', 'scotty', 'conquers', 'statham', 'squirrel', 'jabba', 'rimmer', 'thundercats', 'ripley', 'booker', 'reb', 'brock', 'friar', 'twister', 'obi', 'goblin', 'leia', 'darkwing']\n",
+      "\n",
+      "Cluster 7\n",
+      "['charismatic', 'miscast', 'gifted']\n",
+      "\n",
+      "Cluster 8\n",
+      "['repeatedly', 'randomly', 'nuts', 'hungry', 'bath', 'surgery', 'babies', 'wounds', 'poison', 'feeding', 'filthy', 'stabbed', 'cells', 'melting', 'penis', 'ritual', 'exploding', 'severed', 'heroin', 'trigger', 'cocaine', 'sucking', 'bleeding', 'stabbing', 'cigarettes', 'stoned', 'drowning', 'stripped', 'unconscious', 'goat', 'crushed', 'hairy', 'worm', 'raping', 'knives', 'rapes', 'worms', 'torturing', 'stabs', 'dope', 'smashed', 'violently', 'pills', 'punching', 'trunk', 'whipped', 'rotting', 'bra', 'someones', 'busted', 'gunshot', 'organs', 'decapitated', 'needle', 'slashing', 'decapitation', 'grenade', 'masturbating', 'slashed', 'machete', 'sliced', 'slit', 'intestines', 'impaled', 'chickens', 'maggots']\n",
+      "\n",
+      "Cluster 9\n",
+      "['rough', 'neat', 'slight', 'mild', 'broad', 'minimal', 'smooth', 'slick', 'frequent', 'consistent', 'trademark', 'minimum', 'straightforward', 'static', 'shaky', 'steady', 'choppy', 'jarring', 'flashy', 'noticeable', 'stylized', 'pedestrian', 'deliberate', 'rapid', 'fluid', 'snappy', 'sparse']\n",
+      "Cleaning training reviews\n",
+      "Cleaning test reviews\n",
+      "Fitting a random forest to labeled training data...\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "/usr/local/lib/python3.11/dist-packages/cuml/internals/api_decorators.py:368: UserWarning: For reproducible results in Random Forest Classifier or for almost reproducible results in Random Forest Regressor, n_streams=1 is recommended. If n_streams is > 1, results may vary due to stream/thread timing differences, even when random_state is set\n",
+      "  return init_func(self, *args, **kwargs)\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Wrote /kaggle/working/BagOfCentroids.csv\n"
+     ]
+    }
+   ],
+   "source": [
+    "if __name__ == '__main__':\n",
+    "    model = Word2Vec.load('/kaggle/input/300features-40minwords-10context/300features_40minwords_10context')\n",
+    "\n",
+    "    start = time.time()\n",
+    "\n",
+    "    word_vectors = model.wv.vectors\n",
+    "    num_clusters = word_vectors.shape[0] // 5  # 整除\n",
+    "\n",
+    "    print(\"Running K means\")\n",
+    "    kmeans_clustering = cuKMeans(n_clusters=num_clusters, n_init=10, random_state=42)\n",
+    "    idx = kmeans_clustering.fit_predict(word_vectors)\n",
+    "    end = time.time()\n",
+    "    elapsed = end - start\n",
+    "    print(\"Time taken for K Means clustering:\", elapsed, \"seconds.\")\n",
+    "\n",
+    "    word_centroid_map = dict(zip(model.wv.index_to_key, idx))\n",
+    "\n",
+    "    for cluster in range(10):\n",
+    "        print(\"\\nCluster %d\" % cluster)\n",
+    "        words = [word for word, cluster_idx in word_centroid_map.items() if cluster_idx == cluster]\n",
+    "        print(words)\n",
+    "\n",
+    "    train = pd.read_csv('/kaggle/input/word2vec-nlp-tutorial/labeledTrainData.tsv/labeledTrainData.tsv',\n",
+    "                        header=0, delimiter=\"\\t\", quoting=3)\n",
+    "    test = pd.read_csv('/kaggle/input/word2vec-nlp-tutorial/testData.tsv/testData.tsv',\n",
+    "                       header=0, delimiter=\"\\t\", quoting=3)\n",
+    "\n",
+    "    print(\"Cleaning training reviews\")\n",
+    "    clean_train_reviews = [KaggleWord2VecUtility.review_to_wordlist(review, remove_stopwords=True)\n",
+    "                           for review in train[\"review\"]]\n",
+    "\n",
+    "    print(\"Cleaning test reviews\")\n",
+    "    clean_test_reviews = [KaggleWord2VecUtility.review_to_wordlist(review, remove_stopwords=True)\n",
+    "                          for review in test[\"review\"]]\n",
+    "\n",
+    "    train_centroids = np.zeros((train[\"review\"].size, num_clusters), dtype=\"float32\")\n",
+    "    for i, review in enumerate(clean_train_reviews):\n",
+    "        train_centroids[i] = create_bag_of_centroids(review, word_centroid_map)\n",
+    "\n",
+    "    test_centroids = np.zeros((test[\"review\"].size, num_clusters), dtype=\"float32\")\n",
+    "    for i, review in enumerate(clean_test_reviews):\n",
+    "        test_centroids[i] = create_bag_of_centroids(review, word_centroid_map)\n",
+    "\n",
+    "    print(\"Fitting a random forest to labeled training data...\")\n",
+    "    forest = cuRF(n_estimators=100, random_state=42)\n",
+    "    forest.fit(train_centroids, train[\"sentiment\"])\n",
+    "    result = forest.predict(test_centroids)\n",
+    "\n",
+    "    output = pd.DataFrame(data={\"id\": test[\"id\"], \"sentiment\": result})\n",
+    "    output.to_csv(\"/kaggle/working/BagOfCentroids.csv\", index=False, quoting=3)\n",
+    "    print(\"Wrote /kaggle/working/BagOfCentroids.csv\")\n"
+   ]
+  }
+ ],
+ "metadata": {
+  "kaggle": {
+   "accelerator": "nvidiaTeslaT4",
+   "dataSources": [
+    {
+     "datasetId": 8521174,
+     "sourceId": 13425389,
+     "sourceType": "datasetVersion"
+    },
+    {
+     "datasetId": 8521280,
+     "sourceId": 13425536,
+     "sourceType": "datasetVersion"
+    },
+    {
+     "datasetId": 8525087,
+     "sourceId": 13431583,
+     "sourceType": "datasetVersion"
+    }
+   ],
+   "dockerImageVersionId": 31154,
+   "isGpuEnabled": true,
+   "isInternetEnabled": true,
+   "language": "python",
+   "sourceType": "notebook"
+  },
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.11.13"
+  },
+  "papermill": {
+   "default_parameters": {},
+   "duration": 120.952492,
+   "end_time": "2025-10-19T10:03:40.509319",
+   "environment_variables": {},
+   "exception": null,
+   "input_path": "__notebook__.ipynb",
+   "output_path": "__notebook__.ipynb",
+   "parameters": {},
+   "start_time": "2025-10-19T10:01:39.556827",
+   "version": "2.6.0"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
